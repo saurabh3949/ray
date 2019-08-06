@@ -21,7 +21,8 @@ def build_torch_policy(name,
                        before_init=None,
                        after_init=None,
                        make_model_and_action_dist=None,
-                       mixins=None):
+                       mixins=None,
+                       exploration_policy=None):
     """Helper function for creating a torch policy at runtime.
 
     Arguments:
@@ -68,6 +69,11 @@ def build_torch_policy(name,
             if before_init:
                 before_init(self, obs_space, action_space, config)
 
+            if exploration_policy:
+                self.exploration_policy = exploration_policy(action_space=action_space)
+            else:
+                # TODO: Use exploration factory and figure out the default policy
+                self.exploration_policy = None
             if make_model_and_action_dist:
                 self.model, self.dist_class = make_model_and_action_dist(
                     self, obs_space, action_space, config)

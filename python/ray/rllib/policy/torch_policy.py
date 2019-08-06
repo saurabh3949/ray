@@ -66,6 +66,7 @@ class TorchPolicy(Policy):
                         prev_reward_batch=None,
                         info_batch=None,
                         episodes=None,
+                        exploit=False,
                         **kwargs):
         with self.lock:
             with torch.no_grad():
@@ -78,8 +79,9 @@ class TorchPolicy(Policy):
                     input_dict["prev_rewards"] = prev_reward_batch
                 model_out = self._model(input_dict, state_batches, [1])
                 logits, state = model_out
-                action_dist = self._action_dist_cls(logits)
-                actions = action_dist.sample()
+                action_dist = self._action_dist_cls(
+                    logits, model_config=self.config["model"])
+                actions = self.exploration_policy.get_action(action_distribution=action_dist, exploit=exploit)
                 return (actions.cpu().numpy(),
                         [h.cpu().numpy() for h in state],
                         self.extra_action_out(input_dict, state_batches,

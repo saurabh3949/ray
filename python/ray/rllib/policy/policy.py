@@ -93,6 +93,7 @@ class Policy(object):
                               info=None,
                               episode=None,
                               clip_actions=False,
+                              exploit=False,
                               **kwargs):
         """Unbatched version of compute_actions.
 
@@ -131,7 +132,8 @@ class Policy(object):
             prev_action_batch=prev_action_batch,
             prev_reward_batch=prev_reward_batch,
             info_batch=info_batch,
-            episodes=episodes)
+            episodes=episodes,
+            exploit=exploit)
         if clip_actions:
             action = clip_action(action, self.action_space)
         return action, [s[0] for s in state_out], \
