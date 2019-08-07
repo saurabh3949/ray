@@ -9,6 +9,8 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.torch_policy_template import build_torch_policy
 
 from ray.rllib.exploration_policies.categorical import Categorical
+from ray.rllib.exploration_policies.boltzmann import Boltzmann
+from ray.rllib.utils.schedules import LinearSchedule
 
 
 def pg_torch_loss(policy, batch_tensors):
@@ -36,6 +38,15 @@ def pg_loss_stats(policy, batch_tensors):
     # the error is recorded when computing the loss
     return {"policy_loss": policy.pi_err.item()}
 
+def build_exploration_policy(name,
+                             scheduler=None):
+    pass
+
+
+exploration_policy = build_exploration_policy(name="Boltzmann",
+                                              scheduler=LinearSchedule(schedule_timesteps=1000,
+                                                                       final_p=1,
+                                                                       initial_p=10))
 
 PGTorchPolicy = build_torch_policy(
     name="PGTorchPolicy",
@@ -43,4 +54,4 @@ PGTorchPolicy = build_torch_policy(
     loss_fn=pg_torch_loss,
     stats_fn=pg_loss_stats,
     postprocess_fn=postprocess_advantages,
-    exploration_policy=Categorical)
+    exploration_policy=exploration_policy)

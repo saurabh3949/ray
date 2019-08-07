@@ -79,11 +79,9 @@ class TorchPolicy(Policy):
                     input_dict["prev_rewards"] = prev_reward_batch
                 model_out = self._model(input_dict, state_batches, [1])
                 logits, state = model_out
-                action_dist = self._action_dist_cls(
-                    logits, model_config=self.config["model"])
-                actions = self.exploration_policy.get_action(
-                    action_distribution=action_dist, exploit=exploit)
-                return (actions.cpu().numpy(),
+                actions = self.exploration_policy.get_action_op_torch(
+                    action_values=logits.cpu().numpy(), exploit=exploit)
+                return (actions,
                         [h.cpu().numpy() for h in state],
                         self.extra_action_out(input_dict, state_batches,
                                               self._model))
