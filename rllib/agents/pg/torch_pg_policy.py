@@ -8,6 +8,8 @@ from ray.rllib.evaluation.postprocessing import compute_advantages, \
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.torch_policy_template import build_torch_policy
 
+from ray.rllib.exploration_policies.categorical import Categorical
+
 
 def pg_torch_loss(policy, batch_tensors):
     logits, _ = policy.model({

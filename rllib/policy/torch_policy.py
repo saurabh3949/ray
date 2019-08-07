@@ -81,11 +81,7 @@ class TorchPolicy(Policy):
                 logits, state = model_out
                 action_dist = self._action_dist_cls(
                     logits, model_config=self.config["model"])
-<<<<<<< HEAD:python/ray/rllib/policy/torch_policy.py
                 actions = self.exploration_policy.get_action(action_distribution=action_dist, exploit=exploit)
-=======
-                actions = action_dist.sample()
->>>>>>> master:rllib/policy/torch_policy.py
                 return (actions.cpu().numpy(),
                         [h.cpu().numpy() for h in state],
                         self.extra_action_out(input_dict, state_batches,
