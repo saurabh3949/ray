@@ -5,7 +5,7 @@ from __future__ import print_function
 import ray
 from ray.rllib.evaluation.postprocessing import compute_advantages, \
     Postprocessing
-from ray.rllib.exploration_policies.categorical import Categorical
+from ray.rllib.exploration_policies.categorical import Categorical, EpsilonGreedy
 from ray.rllib.policy.tf_policy_template import build_tf_policy
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils import try_import_tf
@@ -34,4 +34,4 @@ PGTFPolicy = build_tf_policy(
     get_default_config=lambda: ray.rllib.agents.pg.pg.DEFAULT_CONFIG,
     postprocess_fn=postprocess_advantages,
     loss_fn=policy_gradient_loss,
-    exploration_policy=Categorical)
+    exploration_policy=EpsilonGreedy)

@@ -169,9 +169,8 @@ class DynamicTFPolicy(TFPolicy):
             self.action_dist = self.dist_class(
                 self.model_out, model_config=self.config["model"])
             if self.exploration_policy:
-                action_sampler = self.exploration_policy.get_action(
-                    action_distribution=self.action_dist,
-                    exploit=not self.config["exploration"])
+                action_sampler = self.exploration_policy.get_action_op(
+                    self.action_dist, not self.config["exploration"])
             else:
                 action_sampler = self.action_dist.sample()
             action_prob = self.action_dist.sampled_action_prob()
