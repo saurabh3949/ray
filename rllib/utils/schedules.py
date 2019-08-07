@@ -12,6 +12,15 @@ from __future__ import division
 from __future__ import print_function
 
 
+def make_epsilon_schedule(exploration_config):
+    if exploration_config["eps_schedule_timesteps"] <= 0:
+        return ConstantSchedule(exploration_config["final_eps"])
+    else:
+        return LinearSchedule(exploration_config["eps_schedule_timesteps"],
+                              exploration_config["final_eps"],
+                              exploration_config["initial_eps"])
+
+
 class Schedule(object):
     def value(self, t):
         """Value of the schedule at time t"""

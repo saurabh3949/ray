@@ -56,6 +56,7 @@ class DiscreteActionExplorationPolicy(ExplorationPolicy):
         :param action_space: the action space used by the environment
         """
         assert isinstance(action_space, Discrete)
+        ExplorationPolicy.__init__(self, action_space, exploration_config)
 
     def get_action(self, action_distribution, exploit=False):
         """
@@ -86,3 +87,4 @@ class ContinuousActionExplorationPolicy(ExplorationPolicy):
         :param action_space: the action space used by the environment
         """
         assert isinstance(action_space, Box)
+        ExplorationPolicy.__init__(self, action_space, exploration_config)

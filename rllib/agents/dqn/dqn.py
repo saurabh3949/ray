@@ -43,19 +43,19 @@ DEFAULT_CONFIG = with_common_config({
     # Max num timesteps for annealing schedules. Exploration is annealed from
     # 1.0 to exploration_fraction over this number of timesteps scaled by
     # exploration_fraction
-    "schedule_max_timesteps": 100000,
+    "schedule_max_timesteps": 100000,  # TODO(ekl) deprecate
     # Minimum env steps to optimize for per train call. This value does
     # not affect learning, only the length of iterations.
     "timesteps_per_iteration": 1000,
     # Fraction of entire training period over which the exploration rate is
     # annealed
-    "exploration_fraction": 0.1,
+    "exploration_fraction": 0.1,  # TODO(ekl) deprecate
     # Final value of random action probability
-    "exploration_final_eps": 0.02,
+    "exploration_final_eps": 0.02,  # TODO(ekl) deprecate
     # Update the target network every `target_network_update_freq` steps.
     "target_network_update_freq": 500,
     # Use softmax for sampling actions. Required for off policy estimation.
-    "soft_q": False,
+    "soft_q": False,  # TODO(ekl) deprecate
     # Softmax temperature. Q values are divided by this value prior to softmax.
     # Softmax approaches argmax as the temperature drops to zero.
     "softmax_temp": 1.0,
@@ -232,26 +232,31 @@ def setup_exploration(trainer):
 
 def update_worker_explorations(trainer):
     global_timestep = trainer.optimizer.num_steps_sampled
-    exp_vals = [trainer.exploration0.value(global_timestep)]
-    trainer.workers.local_worker().foreach_trainable_policy(
-        lambda p, _: p.set_epsilon(exp_vals[0]))
-    for i, e in enumerate(trainer.workers.remote_workers()):
-        exp_val = trainer.explorations[i].value(global_timestep)
-        e.foreach_trainable_policy.remote(lambda p, _: p.set_epsilon(exp_val))
-        exp_vals.append(exp_val)
+    # TODO(ekl) handle setting the schedule
+    #    exp_vals = [trainer.exploration0.value(global_timestep)]
+    #    trainer.workers.local_worker().foreach_trainable_policy(
+    #        lambda p, _: p.set_epsilon(exp_vals[0]))
+    #    for i, e in enumerate(trainer.workers.remote_workers()):
+    #        exp_val = trainer.explorations[i].value(global_timestep)
+    #        e.foreach_trainable_policy.remote(lambda p, _: p.set_epsilon(exp_val))
+    #        exp_vals.append(exp_val)
     trainer.train_start_timestep = global_timestep
-    trainer.cur_exp_vals = exp_vals
+
+
+#    trainer.cur_exp_vals = exp_vals
 
 
 def add_trainer_metrics(trainer, result):
     global_timestep = trainer.optimizer.num_steps_sampled
     result.update(
         timesteps_this_iter=global_timestep - trainer.train_start_timestep,
-        info=dict({
-            "min_exploration": min(trainer.cur_exp_vals),
-            "max_exploration": max(trainer.cur_exp_vals),
-            "num_target_updates": trainer.state["num_target_updates"],
-        }, **trainer.optimizer.stats()))
+        info=dict(
+            {
+                #            "min_exploration": min(trainer.cur_exp_vals),
+                #            "max_exploration": max(trainer.cur_exp_vals),
+                "num_target_updates": trainer.state["num_target_updates"],
+            },
+            **trainer.optimizer.stats()))
 
 
 def update_target_if_needed(trainer, fetches):
@@ -276,9 +281,10 @@ def collect_metrics(trainer):
 
 
 def disable_exploration(trainer):
-    trainer.evaluation_workers.local_worker().foreach_policy(
-        lambda p, _: p.set_epsilon(0))
+    pass
 
+
+#    trainer.evaluation_workers.foreach_policy(lambda p, _: p.set_epsilon(0))
 
 GenericOffPolicyTrainer = build_trainer(
     name="GenericOffPolicyAlgorithm",

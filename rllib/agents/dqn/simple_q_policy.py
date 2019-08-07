@@ -8,6 +8,7 @@ import logging
 
 import ray
 from ray.rllib.agents.dqn.simple_q_model import SimpleQModel
+from ray.rllib.exploration_policies.categorical import EpsilonGreedy
 from ray.rllib.policy.policy import Policy
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.models import ModelCatalog
@@ -27,25 +28,11 @@ Q_TARGET_SCOPE = "target_q_func"
 
 class ExplorationStateMixin(object):
     def __init__(self, obs_space, action_space, config):
-        self.cur_epsilon = 1.0
         self.stochastic = tf.placeholder(tf.bool, (), name="stochastic")
-        self.eps = tf.placeholder(tf.float32, (), name="eps")
 
     def add_parameter_noise(self):
         if self.config["parameter_noise"]:
             self.sess.run(self.add_noise_op)
-
-    def set_epsilon(self, epsilon):
-        self.cur_epsilon = epsilon
-
-    @override(Policy)
-    def get_state(self):
-        return [TFPolicy.get_state(self), self.cur_epsilon]
-
-    @override(Policy)
-    def set_state(self, state):
-        TFPolicy.set_state(self, state[0])
-        self.set_epsilon(state[1])
 
 
 class TargetNetworkMixin(object):
@@ -109,27 +96,8 @@ def build_action_sampler(policy, q_model, input_dict, obs_space, action_space,
     policy.q_values = q_values
     policy.q_func_vars = q_model.variables()
 
-    # Action outputs
-    deterministic_actions = tf.argmax(q_values, axis=1)
-    batch_size = tf.shape(input_dict[SampleBatch.CUR_OBS])[0]
-
-    # Special case masked out actions (q_value ~= -inf) so that we don't
-    # even consider them for exploration.
-    random_valid_action_logits = tf.where(
-        tf.equal(q_values, tf.float32.min),
-        tf.ones_like(q_values) * tf.float32.min, tf.ones_like(q_values))
-    random_actions = tf.squeeze(
-        tf.multinomial(random_valid_action_logits, 1), axis=1)
-
-    chose_random = tf.random_uniform(
-        tf.stack([batch_size]), minval=0, maxval=1,
-        dtype=tf.float32) < policy.eps
-    stochastic_actions = tf.where(chose_random, random_actions,
-                                  deterministic_actions)
-    action = tf.cond(policy.stochastic, lambda: stochastic_actions,
-                     lambda: deterministic_actions)
-    action_prob = None
-
+    action, action_prob = policy.exploration_policy.get_tf_action_op(
+        q_values, not config["exploration"])
     return action, action_prob
 
 
@@ -181,13 +149,6 @@ def _compute_q_values(policy, model, obs, obs_space, action_space):
     return model.get_q_values(model_out)
 
 
-def exploration_setting_inputs(policy):
-    return {
-        policy.stochastic: True,
-        policy.eps: policy.cur_epsilon,
-    }
-
-
 def setup_early_mixins(policy, obs_space, action_space, config):
     ExplorationStateMixin.__init__(policy, obs_space, action_space, config)
 
@@ -202,12 +163,12 @@ SimpleQPolicy = build_tf_policy(
     make_model=build_q_models,
     action_sampler_fn=build_action_sampler,
     loss_fn=build_q_losses,
-    extra_action_feed_fn=exploration_setting_inputs,
     extra_action_fetches_fn=lambda policy: {"q_values": policy.q_values},
     extra_learn_fetches_fn=lambda policy: {"td_error": policy.td_error},
     before_init=setup_early_mixins,
     after_init=setup_late_mixins,
     obs_include_prev_action_reward=False,
+    exploration_policy=EpsilonGreedy,
     mixins=[
         ExplorationStateMixin,
         TargetNetworkMixin,

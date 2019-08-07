@@ -169,11 +169,11 @@ class DynamicTFPolicy(TFPolicy):
             self.action_dist = self.dist_class(
                 self.model_out, model_config=self.config["model"])
             if self.exploration_policy:
-                action_sampler = self.exploration_policy.get_action_op(
+                action_sampler, action_prob = self.exploration_policy.get_tf_action_op(
                     self.action_dist, not self.config["exploration"])
             else:
                 action_sampler = self.action_dist.sample()
-            action_prob = self.action_dist.sampled_action_prob()
+                action_prob = self.action_dist.sampled_action_prob()
 
         # Phase 1 init
         sess = tf.get_default_session() or tf.Session()

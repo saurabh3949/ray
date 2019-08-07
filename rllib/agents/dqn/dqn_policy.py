@@ -10,6 +10,7 @@ import ray
 from ray.rllib.agents.dqn.distributional_q_model import DistributionalQModel
 from ray.rllib.agents.dqn.simple_q_policy import ExplorationStateMixin, \
     TargetNetworkMixin
+from ray.rllib.exploration_policies.categorical import Categorical as CategoricalExploration, EpsilonGreedy
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.tf.tf_action_dist import Categorical
@@ -105,34 +106,34 @@ class QLoss(object):
             }
 
 
-class QValuePolicy(object):
-    def __init__(self, q_values, observations, num_actions, stochastic, eps,
-                 softmax, softmax_temp, model_config):
-        if softmax:
-            action_dist = Categorical(
-                q_values / softmax_temp, model_config=model_config)
-            self.action = action_dist.sample()
-            self.action_prob = action_dist.sampled_action_prob()
-            return
-
-        deterministic_actions = tf.argmax(q_values, axis=1)
-        batch_size = tf.shape(observations)[0]
-
-        # Special case masked out actions (q_value ~= -inf) so that we don't
-        # even consider them for exploration.
-        random_valid_action_logits = tf.where(
-            tf.equal(q_values, tf.float32.min),
-            tf.ones_like(q_values) * tf.float32.min, tf.ones_like(q_values))
-        random_actions = tf.squeeze(
-            tf.multinomial(random_valid_action_logits, 1), axis=1)
-
-        chose_random = tf.random_uniform(
-            tf.stack([batch_size]), minval=0, maxval=1, dtype=tf.float32) < eps
-        stochastic_actions = tf.where(chose_random, random_actions,
-                                      deterministic_actions)
-        self.action = tf.cond(stochastic, lambda: stochastic_actions,
-                              lambda: deterministic_actions)
-        self.action_prob = None
+#class QValuePolicy(object):
+#    def __init__(self, q_values, observations, num_actions, stochastic, eps,
+#                 softmax, softmax_temp, model_config):
+#        if softmax:
+#            action_dist = Categorical(
+#                q_values / softmax_temp, model_config=model_config)
+#            self.action = action_dist.sample()
+#            self.action_prob = action_dist.sampled_action_prob()
+#            return
+#
+#        deterministic_actions = tf.argmax(q_values, axis=1)
+#        batch_size = tf.shape(observations)[0]
+#
+#        # Special case masked out actions (q_value ~= -inf) so that we don't
+#        # even consider them for exploration.
+#        random_valid_action_logits = tf.where(
+#            tf.equal(q_values, tf.float32.min),
+#            tf.ones_like(q_values) * tf.float32.min, tf.ones_like(q_values))
+#        random_actions = tf.squeeze(
+#            tf.multinomial(random_valid_action_logits, 1), axis=1)
+#
+#        chose_random = tf.random_uniform(
+#            tf.stack([batch_size]), minval=0, maxval=1, dtype=tf.float32) < eps
+#        stochastic_actions = tf.where(chose_random, random_actions,
+#                                      deterministic_actions)
+#        self.action = tf.cond(stochastic, lambda: stochastic_actions,
+#                              lambda: deterministic_actions)
+#        self.action_prob = None
 
 
 class ComputeTDErrorMixin(object):
@@ -174,6 +175,7 @@ def postprocess_trajectory(policy,
         distance_in_action_space = np.mean(
             entropy(clean_action_distribution.T, noisy_action_distribution.T))
         policy.pi_distance = distance_in_action_space
+        # TODO(ekl) fix cur_eps use
         if (distance_in_action_space <
                 -np.log(1 - policy.cur_epsilon +
                         policy.cur_epsilon / policy.num_actions)):
@@ -254,11 +256,13 @@ def build_q_networks(policy, q_model, input_dict, obs_space, action_space,
         policy.action_probs = tf.nn.softmax(policy.q_values)
 
     # Action outputs
-    qvp = QValuePolicy(q_values, input_dict[SampleBatch.CUR_OBS],
-                       action_space.n, policy.stochastic, policy.eps,
-                       config["soft_q"], config["softmax_temp"],
-                       config["model"])
-    policy.output_actions, policy.action_prob = qvp.action, qvp.action_prob
+    policy.output_actions, policy.action_prob = policy.exploration_policy.get_tf_action_op(
+        policy.q_values, policy.config["exploration"])
+    #    qvp = QValuePolicy(q_values, input_dict[SampleBatch.CUR_OBS],
+    #                       action_space.n, policy.stochastic, policy.eps,
+    #                       config["soft_q"], config["softmax_temp"],
+    #                       config["model"])
+    #    policy.output_actions, policy.action_prob = qvp.action, qvp.action_prob
 
     return policy.output_actions, policy.action_prob
 
@@ -368,13 +372,6 @@ def clip_gradients(policy, optimizer, loss):
             loss, var_list=policy.q_func_vars)
     grads_and_vars = [(g, v) for (g, v) in grads_and_vars if g is not None]
     return grads_and_vars
-
-
-def exploration_setting_inputs(policy):
-    return {
-        policy.stochastic: True,
-        policy.eps: policy.cur_epsilon,
-    }
 
 
 def build_q_stats(policy, batch_tensors):
@@ -492,12 +489,12 @@ DQNTFPolicy = build_tf_policy(
     postprocess_fn=postprocess_trajectory,
     optimizer_fn=adam_optimizer,
     gradients_fn=clip_gradients,
-    extra_action_feed_fn=exploration_setting_inputs,
     extra_action_fetches_fn=lambda policy: {"q_values": policy.q_values},
     extra_learn_fetches_fn=lambda policy: {"td_error": policy.q_loss.td_error},
     before_init=setup_early_mixins,
     after_init=setup_late_mixins,
     obs_include_prev_action_reward=False,
+    exploration_policy=EpsilonGreedy,
     mixins=[
         ExplorationStateMixin,
         TargetNetworkMixin,

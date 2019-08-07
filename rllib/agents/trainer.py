@@ -109,7 +109,11 @@ COMMON_CONFIG = {
 
     # === Exploration ===
     "exploration": True,
-    "exploration_config": {},
+    "exploration_config": {
+        "eps_schedule_timesteps": 1000,
+        "initial_eps": 1.0,
+        "final_eps": 0.02,
+    },
 
     # === Evaluation ===
     # Evaluate with every `evaluation_interval` training iterations.
@@ -380,7 +384,7 @@ class Trainer(Trainable):
 
             # step 3: set on everyone, including local
             self.workers.foreach_policy(
-                lambda p, pid: p.exploration_policy.set_exploration_state(
+                lambda p, pid: p.exploration_policy and p.exploration_policy.set_exploration_state(
                     states_by_policy[pid], self.global_vars["timestep"]))
 
         result = None
