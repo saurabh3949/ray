@@ -223,11 +223,12 @@ class TFPolicy(Policy):
                         prev_reward_batch=None,
                         info_batch=None,
                         episodes=None,
+                        exploit=False,
                         **kwargs):
         builder = TFRunBuilder(self._sess, "compute_actions")
         fetches = self._build_compute_actions(builder, obs_batch,
                                               state_batches, prev_action_batch,
-                                              prev_reward_batch)
+                                              prev_reward_batch, exploit=exploit)
         return builder.get(fetches)
 
     @override(Policy)
@@ -420,7 +421,8 @@ class TFPolicy(Policy):
                                state_batches=None,
                                prev_action_batch=None,
                                prev_reward_batch=None,
-                               episodes=None):
+                               episodes=None,
+                               exploit=False):
         state_batches = state_batches or []
         if len(self._state_inputs) != len(state_batches):
             raise ValueError(

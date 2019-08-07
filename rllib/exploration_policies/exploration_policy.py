@@ -51,6 +51,7 @@ class DiscreteActionExplorationPolicy(ExplorationPolicy):
         :param ActionDistribution: An ActionDistribution object
         :return: The chosen action
         """
+        # TODO: also return action probs
         if self.__class__ == ExplorationPolicy:
             raise ValueError("The ExplorationPolicy class is an abstract class and should not be used directly. "
                              "Please set the exploration parameters to point to an inheriting class like EGreedy or "

@@ -30,7 +30,8 @@ def build_tf_policy(name,
                     action_sampler_fn=None,
                     mixins=None,
                     get_batch_divisibility_req=None,
-                    obs_include_prev_action_reward=True):
+                    obs_include_prev_action_reward=True,
+                    exploration_policy=None):
     """Helper function for creating a dynamic tf policy at runtime.
 
     Functions will be run in this order to initialize the policy:
@@ -117,6 +118,13 @@ def build_tf_policy(name,
 
             if before_init:
                 before_init(self, obs_space, action_space, config)
+
+            if exploration_policy:
+                self.exploration_policy = exploration_policy(
+                    action_space=action_space)
+            else:
+                # TODO: Use exploration factory and figure out the default policy
+                self.exploration_policy = None
 
             def before_loss_init_wrapper(policy, obs_space, action_space,
                                          config):

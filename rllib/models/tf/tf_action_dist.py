@@ -46,6 +46,10 @@ class Categorical(TFActionDistribution):
     """Categorical distribution for discrete action spaces."""
 
     @override(ActionDistribution)
+    def exploit_action(self):
+        return tf.math.argmax(self.inputs, 1)
+
+    @override(ActionDistribution)
     def logp(self, x):
         return -tf.nn.sparse_softmax_cross_entropy_with_logits(
             logits=self.inputs, labels=tf.cast(x, tf.int32))

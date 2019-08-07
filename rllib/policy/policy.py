@@ -60,6 +60,7 @@ class Policy(object):
                         prev_reward_batch=None,
                         info_batch=None,
                         episodes=None,
+                        exploit=False,
                         **kwargs):
         """Compute actions for the current policy.
 
@@ -72,6 +73,7 @@ class Policy(object):
             episodes (list): MultiAgentEpisode for each obs in obs_batch.
                 This provides access to all of the internal episode state,
                 which may be useful for model-based or multiagent algorithms.
+            exploit (bool): Whether the policy should exploit vs explore
             kwargs: forward compatibility placeholder
 
         Returns:

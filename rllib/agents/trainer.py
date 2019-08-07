@@ -106,6 +106,10 @@ COMMON_CONFIG = {
     # The default learning rate
     "lr": 0.0001,
 
+    # === Exploration ===
+    "exploration": True,
+    "exploration_config": {},
+
     # === Evaluation ===
     # Evaluate with every `evaluation_interval` training iterations.
     # The evaluation stats will be reported under the "evaluation" metric key.
@@ -117,8 +121,9 @@ COMMON_CONFIG = {
     # Extra arguments to pass to evaluation workers.
     # Typical usage is to pass extra args to evaluation env creator
     # and to disable exploration by computing deterministic actions
-    # TODO(kismuz): implement determ. actions and include relevant keys hints
-    "evaluation_config": {},
+    "evaluation_config": {
+        "exploration": False,
+    },
 
     # === Resources ===
     # Number of actors used for parallelism
