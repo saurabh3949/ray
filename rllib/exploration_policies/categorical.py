@@ -12,11 +12,12 @@ class Categorical(DiscreteActionExplorationPolicy):
     In evaluation, the action that has the highest probability will be selected. This is particularly useful for
     actor-critic schemes, where the actors output is a probability distribution over the actions.
     """
-    def __init__(self, action_space):
+
+    def __init__(self, action_space, exploration_config):
         """
         :param action_space: the action space used by the environment
         """
-        super().__init__(action_space)
+        super().__init__(action_space, exploration_config)
 
     def get_action(self, action_distribution, exploit=False):
         if exploit:
@@ -29,11 +30,11 @@ class Categorical(DiscreteActionExplorationPolicy):
 
 
 class EpsilonGreedy(DiscreteActionExplorationPolicy):
-    def __init__(self, action_space):
+    def __init__(self, action_space, exploration_config):
         """
         :param action_space: the action space used by the environment
         """
-        super().__init__(action_space)
+        super().__init__(action_space, exploration_config)
         self.epsilon = 0.1
 
     def get_action(self, q_values, exploit=False):

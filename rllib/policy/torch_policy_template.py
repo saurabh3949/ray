@@ -70,7 +70,8 @@ def build_torch_policy(name,
                 before_init(self, obs_space, action_space, config)
 
             if exploration_policy:
-                self.exploration_policy = exploration_policy(action_space=action_space)
+                self.exploration_policy = exploration_policy(
+                    action_space, config["exploration_config"])
             else:
                 # TODO: Use exploration factory and figure out the default policy
                 self.exploration_policy = None

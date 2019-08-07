@@ -121,7 +121,7 @@ def build_tf_policy(name,
 
             if exploration_policy:
                 self.exploration_policy = exploration_policy(
-                    action_space=action_space)
+                    action_space, config["exploration_config"])
             else:
                 # TODO: Use exploration factory and figure out the default policy
                 self.exploration_policy = None

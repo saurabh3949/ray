@@ -226,9 +226,13 @@ class TFPolicy(Policy):
                         exploit=False,
                         **kwargs):
         builder = TFRunBuilder(self._sess, "compute_actions")
-        fetches = self._build_compute_actions(builder, obs_batch,
-                                              state_batches, prev_action_batch,
-                                              prev_reward_batch, exploit=exploit)
+        fetches = self._build_compute_actions(
+            builder,
+            obs_batch,
+            state_batches,
+            prev_action_batch,
+            prev_reward_batch,
+            exploit=exploit)
         return builder.get(fetches)
 
     @override(Policy)

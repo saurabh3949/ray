@@ -100,6 +100,10 @@ class WorkerSet(object):
             w.__ray_terminate__.remote()
 
     @DeveloperAPI
+    def foreach_policy(self, func):
+        return self.foreach_worker(lambda worker: worker.foreach_policy(func))
+
+    @DeveloperAPI
     def foreach_worker(self, func):
         """Apply the given function to each worker instance."""
 

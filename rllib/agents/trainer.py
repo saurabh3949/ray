@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 from datetime import datetime
 import copy
 import logging
@@ -361,6 +362,26 @@ class Trainer(Trainable):
             for w in self.optimizer.workers.remote_workers():
                 w.set_global_vars.remote(self.global_vars)
             logger.debug("updated global vars: {}".format(self.global_vars))
+
+            # step 1: gather all exploration states
+            exploration_states = self.workers.foreach_policy(
+                lambda p, pid: (pid, p.exploration_policy.get_exploration_state() if p.exploration_policy else None))
+
+            # step 2: merge them
+            states_by_policy = collections.defaultdict(list)
+            for policy_states in exploration_states:
+                for pid, exp_state in policy_states:
+                    if exp_state is not None:
+                        states_by_policy[pid].append(exp_state)
+            for pid, exp_states in states_by_policy.items():
+                policy = self.workers.local_worker().policy_map[pid]
+                states_by_policy[pid] = (policy.exploration_state.
+                                         merge_exploration_states(exp_states))
+
+            # step 3: set on everyone, including local
+            self.workers.foreach_policy(
+                lambda p, pid: p.exploration_policy.set_exploration_state(
+                    states_by_policy[pid], self.global_vars["timestep"]))
 
         result = None
         for _ in range(1 + MAX_WORKER_FAILURE_RETRIES):
