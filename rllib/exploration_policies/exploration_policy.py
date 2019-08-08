@@ -81,8 +81,26 @@ class ContinuousActionExplorationPolicy(ExplorationPolicy):
     A continuous action exploration policy.
     """
 
-    def __init__(self, action_space):
+    def __init__(self, action_space, exploration_config):
         """
         :param action_space: the action space used by the environment
         """
         assert isinstance(action_space, Box)
+
+    def get_action(self, action_distribution, exploit=False):
+        """
+        Given a list of values corresponding to each action,
+        choose one actions according to the exploration policy
+        :param ActionDistribution: An ActionDistribution object
+        :return: The chosen action
+        """
+        # TODO: also return action probs
+        if self.__class__ == ExplorationPolicy:
+            raise ValueError(
+                "The ExplorationPolicy class is an abstract class and should not be used directly. "
+                "Please set the exploration parameters to point to an inheriting class like EGreedy or "
+                "AdditiveNoise")
+        else:
+            raise ValueError(
+                "The get_action function should be overridden in the inheriting exploration class"
+            ) 

@@ -8,7 +8,7 @@ from ray.rllib.evaluation.postprocessing import compute_advantages, \
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.torch_policy_template import build_torch_policy
 
-from ray.rllib.exploration_policies.categorical import Categorical
+from ray.rllib.exploration_policies.additive_noise import AdditiveNoise
 
 
 def pg_torch_loss(policy, batch_tensors):
@@ -43,4 +43,4 @@ PGTorchPolicy = build_torch_policy(
     loss_fn=pg_torch_loss,
     stats_fn=pg_loss_stats,
     postprocess_fn=postprocess_advantages,
-    exploration_policy=Categorical)
+    exploration_policy=AdditiveNoise)
