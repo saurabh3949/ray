@@ -37,7 +37,7 @@ class Boltzmann(DiscreteActionExplorationPolicy):
 
     def get_action(self, action_values, exploit=False):
         if exploit:
-            return np.argmax(action_values, axis=1)
+            return np.argmax(action_values, axis=1), np.ones(action_values.shape[0], dtype=np.float32)
         else:
             exp_probabilities = np.exp(action_values / self.temperature_schedule.value(self.global_timestep))
             probabilities = exp_probabilities / np.sum(exp_probabilities, axis=1).reshape((action_values.shape[0], 1))
@@ -47,7 +47,7 @@ class Boltzmann(DiscreteActionExplorationPolicy):
             actions = np.zeros(action_values.shape[0], dtype=np.int32)
             for index in range(action_values.shape[0]):
                 actions[index] = np.random.choice(range(action_values.shape[1]), p=probabilities[index])
-            return actions
+            return actions, probabilities.astype(np.float32)
 
     def get_action_op_tf(self, action_values, exploit):
         """Use this op for tensorflow"""
@@ -61,4 +61,6 @@ class Boltzmann(DiscreteActionExplorationPolicy):
     
     def get_action_op_torch(self, action_values, exploit=False):
         """Use this op for torch. Input/output format is numpy"""
-        return self.get_action(action_values, exploit)
+        action_values = action_values.inputs.cpu().numpy()
+        actions, probs = self.get_action(action_values, exploit)
+        return torch.from_numpy(actions), torch.from_numpy(probs)

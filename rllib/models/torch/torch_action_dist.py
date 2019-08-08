@@ -38,6 +38,7 @@ class TorchCategorical(TorchDistributionWrapper):
 
     @override(ActionDistribution)
     def __init__(self, inputs, model_config):
+        self.inputs = inputs
         self.dist = torch.distributions.categorical.Categorical(logits=inputs)
         self.model_config = model_config
 
