@@ -23,7 +23,7 @@ class ThompsonSampling(Exploration):
         if explore:
             return distribution_inputs.argmax(dim=1), None
         else:
-            scores = model.predict(model.current_obs)
+            scores = model.predict(model.current_obs())
             return scores.argmax(dim=1), None
 
 
