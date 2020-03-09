@@ -1,1 +1,1 @@
-from .linear import LinTSTrainer
+from .linear import LinTSTrainer, LinUCBTrainer

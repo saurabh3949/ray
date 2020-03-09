@@ -1,4 +1,6 @@
+from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.rllib.utils import try_import_torch
+from ray.rllib.utils.annotations import override
 
 torch, nn = try_import_torch()
 
@@ -16,12 +18,12 @@ class OnlineLinearRegression(nn.Module):
 
     def _init_params(self):
         self.covariance = torch.inverse(self.precision)
-        self.covariance.mul_(self.alpha)
         self.update_schedule = 1
         self.delta_f = 0
         self.delta_b = 0
         self.time = 0
         self.theta = self.covariance.matmul(self.f)
+        self.covariance.mul_(self.alpha)
         self.dist = MultivariateNormal(self.theta, self.covariance)
 
     def partial_fit(self, x, y):
@@ -46,10 +48,25 @@ class OnlineLinearRegression(nn.Module):
         theta = self.dist.sample()
         return theta
 
-    def get_theta(self):
-        return self.theta
+    def get_ucbs(self, x):
+        """ Calculate upper confidence bounds using covariance matrix according to
+        algorithm 1: LinUCB (http://proceedings.mlr.press/v15/chu11a/chu11a.pdf).
 
-    def forward(self, x, sample_theta=False, use_ucb=False):
+        Args:
+            x (torch.Tensor): Input feature tensor of shape (batch_size, feature_dim)
+        """
+
+        projections = self.covariance @ x.T
+        batch_dots = (x * projections.T).sum(dim=1)
+        return batch_dots.sqrt()
+
+    def forward(self, x, sample_theta=False):
+        """ Predict the scores on input batch using the underlying linear model
+        Args:
+            x (torch.Tensor): Input feature tensor of shape (batch_size, feature_dim)
+            sample_theta (bool): Whether to sample the weights from its posterior distribution
+                to perform Thompson Sampling as per http://proceedings.mlr.press/v28/agrawal13.pdf .
+        """
         self._check_inputs(x)
         theta = self.sample_theta() if sample_theta else self.theta
         scores = x @ theta
@@ -65,32 +82,60 @@ class OnlineLinearRegression(nn.Module):
                                        "supported for now!"
 
 
-class DiscreteLinearModel(nn.Module):
-    def __init__(self, feature_dim, num_arms, alpha=1, lambda_=1):
-        super(DiscreteLinearModel, self).__init__()
-        self.feature_dim = feature_dim
-        self.num_arms = num_arms
-        self.arms = nn.ModuleList(
-            [OnlineLinearRegression(feature_dim=feature_dim, alpha=alpha, lambda_=lambda_) for i in range(num_arms)])
+class DiscreteLinearModel(TorchModelV2, nn.Module):
+    def __init__(self, obs_space, action_space, num_outputs, model_config, name):
+        TorchModelV2.__init__(self, obs_space, action_space, num_outputs,
+                              model_config, name)
+        nn.Module.__init__(self)
 
-    def forward(self, x, sample_theta=False, use_ucb=False):
-        scores = self.predict(x, sample_theta, use_ucb)
-        return scores.argmax(dim=1)
+        alpha = model_config.get("alpha", 1)
+        lambda_ = model_config.get("lambda_", 1)
+        self.feature_dim = obs_space.sample().size
+        self.arms = nn.ModuleList(
+            [OnlineLinearRegression(feature_dim=self.feature_dim, alpha=alpha, lambda_=lambda_) for i in
+             range(self.num_outputs)])
+        self._cur_value = None
+        self._cur_ctx = None
+
+    @override(TorchModelV2)
+    def forward(self, input_dict, state, seq_lens):
+        x = input_dict["obs"]
+        scores = self.predict(x)
+        return scores, state
 
     def predict(self, x, sample_theta=False, use_ucb=False):
-        scores = torch.stack([self.arms[i](x, sample_theta, use_ucb) for i in range(self.num_arms)], dim=-1)
-        return scores
+        self._cur_ctx = x
+        scores = torch.stack([self.arms[i](x, sample_theta) for i in range(self.num_outputs)], dim=-1)
+        self._cur_value = scores
+        if use_ucb:
+            ucbs = torch.stack([self.arms[i].get_ucbs(x) for i in range(self.num_outputs)], dim=-1)
+            return scores + ucbs
+        else:
+            return scores
 
     def partial_fit(self, x, y, arm):
         assert 0 <= arm.item() < len(self.arms), f"Invalid arm: {arm.item()}. It should be 0 <= arm < {len(self.arms)}"
         self.arms[arm].partial_fit(x, y)
 
+    @override(TorchModelV2)
+    def value_function(self):
+        assert self._cur_value is not None, "must call forward() first"
+        return self._cur_value
+
+    def current_obs(self):
+        assert self._cur_ctx is not None, "must call forward() first"
+        return self._cur_ctx
+
 
 class DiscreteLinearModelUCB(DiscreteLinearModel):
-    def forward(self, x):
-        return super(DiscreteLinearModelUCB, self).forward(x, sample_theta=False, use_ucb=True)
+    def forward(self, input_dict, state, seq_lens):
+        x = input_dict["obs"]
+        scores = super(DiscreteLinearModelUCB, self).predict(x, sample_theta=False, use_ucb=True)
+        return scores, state
 
 
 class DiscreteLinearModelThompsonSampling(DiscreteLinearModel):
-    def forward(self, x):
-        return super(DiscreteLinearModelThompsonSampling, self).forward(x, sample_theta=True, use_ucb=False)
+    def forward(self, input_dict, state, seq_lens):
+        x = input_dict["obs"]
+        scores = super(DiscreteLinearModelThompsonSampling, self).predict(x, sample_theta=True, use_ucb=False)
+        return scores, state
