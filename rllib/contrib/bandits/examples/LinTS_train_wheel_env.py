@@ -35,11 +35,18 @@ if __name__ == "__main__":
     num_iter = 2000
     print("Running training for %s time steps" % num_iter)
     trainer = LinTSTrainer(env=WheelBanditEnv)
-    for i in range(num_iter):
-        trainer.train()
 
     policy = trainer.get_policy()
     model = policy.model
+
+    print("Using exploration strategy:", policy.exploration)
+    print("Using model:", model)
+
+    for i in range(num_iter):
+        trainer.train()
+
+    info = trainer.train()
+    print(info["info"]["learner"])
 
     # Get model parameters
     means = [model.arms[i].theta.numpy() for i in range(5)]
